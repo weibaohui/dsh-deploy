@@ -1,0 +1,97 @@
+ui-onboarding:
+  welcomeNoticeVersion: 2026-08-13.1
+permission:
+  defaultPreset: danger-full-access
+ui-conversation:
+  busyEnter: steer
+agent-presets:
+  default: standard
+ui-theme:
+  preference: system
+# ── LLM provider config ─────────────────────────────────────────────────────
+# Default below = MiniMax (provider "minimax-cn"), runnable out of the box against the
+# MINIMAX_CN_API_KEY in credentials.yaml. MiniMax is just the bundled example — dsh
+# supports any provider registered under llm-pi-ai.providers.
+#
+# To swap to another provider, change these 4 spots together:
+#   1. llm-pi-ai.providers.<id>            — the provider id + its models[] + apiKeyEnv
+#   2. agent-default-model.provider/model  — which provider/model the chat agent uses
+#   3. hermes-loop.provider/model           — which provider/model the autonomous loop uses
+#   4. credentials.yaml env name            — match the provider's apiKeyEnv (e.g.
+#        DEEPSEEK_API_KEY / OPENAI_API_KEY / ZHIPUAI_API_KEY / DASHSCOPE_API_KEY)
+# Keep agent-default-model and hermes-loop pointing at the provider you configured above.
+# ────────────────────────────────────────────────────────────────────────────
+llm-pi-ai:
+  providers:
+    minimax-cn:
+      models:
+        - id: MiniMax-M2.7
+          name: MiniMax-M2.7
+          contextWindow: 204800
+          maxTokens: 131072
+        - id: MiniMax-M2.7-highspeed
+          name: MiniMax-M2.7-highspeed
+          contextWindow: 204800
+          maxTokens: 131072
+        - id: MiniMax-M3
+          name: MiniMax-M3
+          contextWindow: 1000000
+          maxTokens: 128000
+      apiKeyEnv: MINIMAX_CN_API_KEY
+agent-default-model:
+  provider: minimax-cn
+  model: MiniMax-M2.7
+dsh-better-sidebar:
+  defaultWidthPercent: 20
+  titleBarCompat: false
+locale:
+  preference: zh
+hermes-loop:
+  turnInterval: 10
+  cooldownMinutes: 30
+  mode: auto
+  signalTriggerEnabled: true
+  signalToolFailureMin: 3
+  provider: minimax-cn
+  model: MiniMax-M2.7
+dsh-auto-collapse:
+  statusText: ""
+skills-management-market:
+  token: null
+  url: https://gitcode.com/weibaohui/ntd-resource.git
+  branch: main
+  autoSync: false
+  syncOnStartup: false
+dsh-sync:
+  repoUrl: https://gitcode.com/weibaohui/dsh-sync.git
+  branch: main
+  token: null              # redacted — fill your gitcode token if you enable sync (autoSync/syncOnStartup are false on a fresh node)
+  conflictMode: ai
+  autoSync: false
+  syncOnStartup: false
+  syncSkills: true
+  syncSessions: true
+  syncSettings: true
+  syncPlugins: true
+  intervalMinutes: 30
+experts-management-market:
+  url: https://gitcode.com/weibaohui/ntd-resource.git
+  branch: main
+  autoSync: false
+  syncOnStartup: false
+settings-ui:
+  size: full
+  customWidth: 1280
+  customHeight: 960
+  opacity: 100
+  bgMode: default
+  bgColorLight: "#eef1f5"
+  bgColorDark: "#1e2a38"
+  bgUrl: ""
+  bgFile: ""
+  bgRev: ""
+
+user-management:
+  enabled: true
+  listenHost: '0.0.0.0'
+  port: 19843
