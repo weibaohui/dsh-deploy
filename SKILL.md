@@ -12,6 +12,15 @@
 - 目标：Linux 服务器（Ubuntu/Debian），root 权限，能访问 npmmirror，19843 端口对访问者可达。
 - user-management **0.6.1+**（install.sh 装 `@weibaohui/user-management@latest`；0.5.4+ 有 sites merge，**0.6.1+ 修了 `/plugins/*` 公开**——< 0.6.1 的 gated gateway 会 "Failed to load plugins"）。
 
+## 目标平台检测（决定用哪个脚本）
+
+部署前先判断目标平台，决定用哪个安装脚本：
+
+- **Linux 服务器**（root + systemd + 标准 linux-x64）：用 `install.sh`（scp 上传 + `bash install.sh`）。本 SKILL 主体 Procedure 即此路径。
+- **Android Termux**（用户名 `u0_aXXX`、sshd 在 8022、`$PREFIX`=`/data/data/com.termux/files/usr`、非 root、无 systemd、aarch64）：用 `install-termux.sh`。它不是标准 Linux——node-pty/koffi/sharp 等 native 依赖要 5 个 patch（已内联自 lilyco-42/dsh-termux，自包含离线/弱网不依赖 git clone），`install.sh` 会因 node-pty `android_ndk_path` / 无 systemd 直接失败。
+
+> Termux 远程：sshd 默认 8022（非 22），`ssh -p 8022 u0_aXXX@<手机IP>`（密码或 key）。scp 上传 dsh-deploy/ 后 `bash install-termux.sh`。其余参数（provider/key/model/public_ip/domain）收集逻辑同下，只是执行脚本换成 `install-termux.sh`、启动方式是 `nohup`（非 systemd）、保活用 `termux-wake-lock`。
+
 ## Procedure
 
 ### 1. 收集参数（一次 `ask_user_question` 问全）
