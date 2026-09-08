@@ -163,6 +163,24 @@ PY
   log "dsh shebang set (node --expose-internals)"
 fi
 
+# ---- 8b. [locale-patch] dsh 0.1.2-rc.1 slash.menu locale conflict (silent overwrite) ----
+# dsh-client-ui-input-trigger registers slash.menu zh; on 0.1.2-rc.1 it's loaded
+# twice (base client fallback + profile) -> "already has locale zh" throw. Make the
+# register silent (continue) so dsh web still loads. No-op on 0.1.1-rc.2 (no dup load).
+LOCALE_JS="$DSH_LIB/node_modules/@deepseek-ai/dsh-client-locale/lib/client.js"
+if [ -f "$LOCALE_JS" ] && grep -q 'already has locale' "$LOCALE_JS" 2>/dev/null && ! grep -q 'patched: silent overwrite' "$LOCALE_JS" 2>/dev/null; then
+  log "patching locale register (slash.menu duplicate -> silent)..."
+  python3 - "$LOCALE_JS" <<'PY'
+import sys
+path=sys.argv[1]; src=open(path,encoding="utf-8").read()
+old='for (const [locale] of pairs) if (locales.has(localeKey(locale))) throw new Error(`locale namespace "${ns}" already has locale "${locale}"`)'
+new='for (const [locale] of pairs) if (locales.has(localeKey(locale))) continue  // patched: silent overwrite instead of throw'
+if old in src: open(path,"w",encoding="utf-8").write(src.replace(old,new)); print("    patched: locale silent overwrite")
+else: print("    WARN: locale throw pattern not found (dsh may have changed)")
+PY
+  log "locale patched (silent overwrite)"
+fi
+
 # ---- 9. verify dsh ----
 command -v dsh >/dev/null || err "dsh not on PATH after install — check errors above."
 log "dsh $(dsh --version) ready"
