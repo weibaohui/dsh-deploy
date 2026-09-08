@@ -208,6 +208,9 @@ echo $! > ~/.dsh/dsh-web.pid
 disown
 log "dsh web started (pid $(cat ~/.dsh/dsh-web.pid))"
 
+# ---- 14b. install start.sh to ~/start.sh (one-command startup after each Termux reboot) ----
+[ -f "$HERE/start.sh" ] && { cp -f "$HERE/start.sh" ~/start.sh && chmod +x ~/start.sh && log "start.sh -> ~/start.sh (run it after each Termux reboot)"; } || log "start.sh not in $HERE (skip)"
+
 # ---- 15. verify + print access URL ----
 log "waiting for boot..."
 for _ in $(seq 1 15); do
@@ -225,5 +228,5 @@ echo "dsh web   : http://127.0.0.1:${WEB_PORT}   (loopback, ungated upstream)"
 echo "gateway   : https://${GW_IP}:${GW_PORT}       (HTTPS self-signed, first visitor = admin)"
 echo "open in browser : https://${GW_IP}:${GW_PORT}  -> trust the self-signed cert -> register the first admin"
 echo "logs           : tail -f ~/.dsh/dsh-web.log"
-echo "restart after reboot : nohup dsh web --port ${WEB_PORT} --no-open > ~/.dsh/dsh-web.log 2>&1 & disown"
+echo "restart after reboot : bash ~/start.sh   (starts sshd + dsh web + wake-lock)"
 echo "====================================================="

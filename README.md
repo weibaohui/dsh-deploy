@@ -38,7 +38,7 @@ bash install-termux.sh
 #   DOMAIN=dsh.example.com bash install-termux.sh
 ```
 `install-termux.sh` 把 5 个 native-runtime patch（node-pty 去 `OS=android`、koffi target android30、sharp 对 libvips 编译、session `link()→rename()`、shebang `--expose-internals`）**内联自** [lilyco-42/dsh-termux](https://github.com/lilyco-42/dsh-termux) 的 install.sh（自包含，离线/弱网不依赖 `git clone`）；自己负责换清华镜像（默认 `packages-cf.termux.dev` 国内常不可达）、装 pnpm、配 settings/credentials、装 11 插件、`nohup` 启动（替代 systemd）、`termux-wake-lock`（防 Android 杀后台）。
-浏览器开 `https://<手机局域网IP>:19843` → 信任自签证书 → **注册首个访问者为管理员**。手机重启后需重新 `nohup dsh web`（Termux 无 systemd 自启；装 Termux:Boot 可实现开机自启）。
+浏览器开 `https://<手机局域网IP>:19843` → 信任自签证书 → **注册首个访问者为管理员**。手机重启后跑 `bash ~/start.sh`（install-termux.sh 自动装的，起 sshd+dsh web+wake-lock；Termux 无 systemd 自启，装 Termux:Boot + 把 start.sh 放 `~/.termux/boot/` 可开机自启）。
 
 ## 文件
 
@@ -46,6 +46,7 @@ bash install-termux.sh
 |---|---|
 | `install.sh` | Linux 服务器一键脚本（root 跑；支持 `PUBLIC_IP`/`DOMAIN`/`CERT`/`KEY` env var 把公网 IP/域名加进 gateway sites） |
 | `install-termux.sh` | Android Termux 一键脚本（非 root；5 个 native patch 内联自 dsh-termux，自包含离线可用；`nohup` 替代 systemd） |
+| `start.sh` | Termux 启动脚本（装完跑 `bash ~/start.sh` 起 sshd+dsh web+wake-lock，幂等；install-termux.sh 自动 cp 到 `~/start.sh`） |
 | `settings.yaml` | LLM provider 配置（默认 MiniMax 示例，provider 可换；同步全关；`dsh-sync` token=null） |
 | `credentials.yaml.example` | key 模板（minimax 示例 env `MINIMAX_CN_API_KEY`；换 provider 改 env 名，见 SKILL 速查表） |
 | `credentials.yaml` | 你填好 key 的真实文件（**`.gitignore` 排除，不分发**） |
