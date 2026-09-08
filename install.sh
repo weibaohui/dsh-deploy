@@ -9,8 +9,8 @@ DSH_VERSION=0.1.1-rc.2      # pin: 0.1.2-rc.1 has a base client locale collision
 NODE_VERSION=v22.23.2       # Node 22 LTS (npmmirror binary — NodeSource apt 404s on JD Cloud)
 WEB_PORT=3080               # dsh web loopback; the user-management gateway fronts it on :19843
 REGISTRY=https://registry.npmmirror.com
-# our plugins (published @weibaohui/*) + dsh-taskboard. NOT dsh-login/dsh-process (unfinished), NOT dsh-gateway (merged into user-management)
-PLUGINS="@weibaohui/context-razor@latest @weibaohui/dsh-continue@latest @weibaohui/dsh-file-share@latest @weibaohui/dsh-settings-ui@latest @weibaohui/dsh-smart-title@latest @weibaohui/dsh-sync@latest @weibaohui/dsh-tasks@latest @weibaohui/experts-management@latest @weibaohui/hermes-loop@latest @weibaohui/skills-management@latest @weibaohui/user-management@latest @weibaohui/dsh-process@latest dsh-taskboard@latest"
+# our plugins (published @weibaohui/*) + dsh-taskboard. NOT dsh-login (unfinished), NOT dsh-gateway (merged into user-management)
+PLUGINS="@weibaohui/context-razor@latest @weibaohui/dsh-continue@latest @weibaohui/dsh-file-share@latest @weibaohui/dsh-kb@latest @weibaohui/dsh-process@latest @weibaohui/dsh-settings-ui@latest @weibaohui/dsh-smart-title@latest @weibaohui/dsh-sync@latest @weibaohui/dsh-tasks@latest @weibaohui/experts-management@latest @weibaohui/hermes-loop@latest @weibaohui/skills-management@latest @weibaohui/user-management@latest dsh-taskboard@latest"
 # ==================================================
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
