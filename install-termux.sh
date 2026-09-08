@@ -194,7 +194,7 @@ dsh --profile web --dump-config >/dev/null
 log "web profile scaffold ready"
 
 # ---- 13. plugins (published @weibaohui/*) + dsh-taskboard ----
-PLUGINS="@weibaohui/context-razor@latest @weibaohui/dsh-continue@latest @weibaohui/dsh-file-share@latest @weibaohui/dsh-settings-ui@latest @weibaohui/dsh-smart-title@latest @weibaohui/dsh-sync@latest @weibaohui/dsh-tasks@latest @weibaohui/experts-management@latest @weibaohui/hermes-loop@latest @weibaohui/skills-management@latest @weibaohui/user-management@latest dsh-taskboard@latest"
+PLUGINS="@weibaohui/context-razor@latest @weibaohui/dsh-continue@latest @weibaohui/dsh-file-share@latest @weibaohui/dsh-settings-ui@latest @weibaohui/dsh-smart-title@latest @weibaohui/dsh-sync@latest @weibaohui/dsh-tasks@latest @weibaohui/experts-management@latest @weibaohui/hermes-loop@latest @weibaohui/skills-management@latest @weibaohui/user-management@latest @weibaohui/dsh-process@latest dsh-taskboard@latest"
 log "installing plugins..."
 # shellcheck disable=SC2086  # intentional word-split of the plugin list
 dsh plugin --profile web add $PLUGINS -w
