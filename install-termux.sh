@@ -11,7 +11,7 @@
 # would stall the whole install). Source (no license file shipped there):
 #   https://github.com/lilyco-42/dsh-termux  (install.sh)
 # dsh-deploy adds the Termux-mirror swap, pnpm, provider config/credentials,
-# the 11 plugins, nohup startup, wake-lock and verification around it.
+# the FDE-tools bundle plugin, nohup startup, wake-lock and verification around it.
 #
 # Prereqs: Android 11+ (API 30, koffi statx). Run inside Termux.
 # Folder must contain alongside this script: settings.yaml, credentials.yaml.
@@ -21,7 +21,7 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WEB_PORT=3080               # dsh web loopback; user-management gateway fronts it on :19843
+WEB_PORT=3080               # dsh web loopback; user-management gateway fronts it on :19843 (installed later via the bundle panel)
 GW_PORT=19843
 NDK_TARGET="aarch64-unknown-linux-android30"
 log(){ printf '\033[1;36m[dsh-deploy-termux]\033[0m %s\n' "$*"; }
@@ -101,10 +101,20 @@ PY
 fi
 
 # ---- 5. [dsh-termux] install @deepseek-ai/dsh (native modules compiled, CFLAGS target android30) ----
-log "installing @deepseek-ai/dsh (native modules will be compiled)..."
+log "installing @deepseek-ai/dsh@0.1.2-rc.1 (native modules will be compiled)..."
 export CFLAGS="--target=$NDK_TARGET"
 export CXXFLAGS="--target=$NDK_TARGET"
-npm install -g @deepseek-ai/dsh
+# Pin 0.1.2-rc.1: the latest (0.1.5-rc.1) starts dsh web, prints the ready banner,
+# but never opens the :3080 listener on Termux/aarch64 (stuck post-banner, 0 errors,
+# ~10min wait). 0.1.2-rc.1 is the Termux-verified baseline (matches the locale patch
+# below). Bump only after re-verifying listen + gateway on a Termux device.
+#
+# --allow-scripts is REQUIRED on npm 11+ (bundled with node v26): without it npm
+# silently skips install scripts of @deepseek-ai/dsh-subprocess-local (spawn-helper
+# never gets built), koffi (no .node native module) and node-pty — dsh web then
+# hangs forever in pipe_read waiting for its worker and never binds :3080.
+DSH_ALLOW_SCRIPTS="@deepseek-ai/dsh-subprocess-local,koffi,node-pty,@google/genai,protobufjs"
+npm install -g @deepseek-ai/dsh@0.1.2-rc.1 --allow-scripts="$DSH_ALLOW_SCRIPTS"
 log "dsh installed"
 
 # ---- 6. [dsh-termux] build sharp against system libvips ----
@@ -211,13 +221,15 @@ log "provider config + keys in ~/.dsh/ (sync disabled)"
 dsh --profile web --dump-config >/dev/null
 log "web profile scaffold ready"
 
-# ---- 13. plugins (published @weibaohui/*) + dsh-taskboard ----
-PLUGINS="@weibaohui/context-razor@latest @weibaohui/dsh-continue@latest @weibaohui/dsh-file-share@latest @weibaohui/dsh-settings-ui@latest @weibaohui/dsh-smart-title@latest @weibaohui/dsh-sync@latest @weibaohui/dsh-tasks@latest @weibaohui/experts-management@latest @weibaohui/hermes-loop@latest @weibaohui/skills-management@latest @weibaohui/user-management@latest @weibaohui/dsh-process@latest dsh-taskboard@latest"
-log "installing plugins..."
+# ---- 13. plugins: single bundle (members install later from the FDE 工具箱 panel) ----
+# @weibaohui/dsh-fde-tools is a bootstrap: after boot, open the sidebar "🧰 FDE 工具箱"
+# panel and one-click install the members (incl. user-management gateway), then restart.
+PLUGINS="@weibaohui/dsh-fde-tools@latest"
+log "installing bundle plugin..."
 # shellcheck disable=SC2086  # intentional word-split of the plugin list
 dsh plugin --profile web add $PLUGINS -w
 dsh --profile web --dump-config >/dev/null
-log "plugins installed, composition OK"
+log "bundle plugin installed, composition OK"
 
 # ---- 14. start dsh web (nohup; Termux has no systemd) + wake-lock (Android kills background) ----
 command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock && log "termux-wake-lock acquired"
@@ -229,22 +241,30 @@ log "dsh web started (pid $(cat ~/.dsh/dsh-web.pid))"
 # ---- 14b. install start.sh to ~/start.sh (one-command startup after each Termux reboot) ----
 [ -f "$HERE/start.sh" ] && { cp -f "$HERE/start.sh" ~/start.sh && chmod +x ~/start.sh && log "start.sh -> ~/start.sh (run it after each Termux reboot)"; } || log "start.sh not in $HERE (skip)"
 
-# ---- 15. verify + print access URL ----
+# ---- 15. verify + print next steps ----
+# NOTE: no gateway at this point — user-management (the :19843 HTTPS front-door) is a
+# bundle member installed from the FDE 工具箱 panel AFTER first login, then a restart.
 log "waiting for boot..."
 for _ in $(seq 1 15); do
-  curl -fsk -o /dev/null "https://127.0.0.1:${GW_PORT}/login" 2>/dev/null && break
+  curl -fs -o /dev/null "http://127.0.0.1:${WEB_PORT}/" 2>/dev/null && break
   sleep 2
 done
-# pick a LAN ip from the gateway's own hosts list in the log (auto-enumerates local IPs)
-GW_IP="$(grep -oE 'hosts: [^)]*192\.168\.[0-9.]+' ~/.dsh/dsh-web.log 2>/dev/null | grep -oE '192\.168\.[0-9.]+' | head -1)"
-GW_IP="${GW_IP:-127.0.0.1}"
-curl -fsk -o /dev/null "https://${GW_IP}:${GW_PORT}/login" || err "gateway :${GW_PORT} not responding — check ~/.dsh/dsh-web.log"
+curl -fs -o /dev/null "http://127.0.0.1:${WEB_PORT}/" || err "dsh web :${WEB_PORT} not responding — check ~/.dsh/dsh-web.log"
+# LAN IP for the sshd hint (no gateway hosts line in the log yet — enumerate ifaces)
+LAN_IP="$(ip -4 addr show 2>/dev/null | awk '/inet / && $2 !~ /^127\./ {sub(/\/.*$/,"",$2); print $2; exit}')"
+LAN_IP="${LAN_IP:-127.0.0.1}"
 
 echo
 echo "================ dsh deployed (Termux) ================"
-echo "dsh web   : http://127.0.0.1:${WEB_PORT}   (loopback, ungated upstream)"
-echo "gateway   : https://${GW_IP}:${GW_PORT}       (HTTPS self-signed, first visitor = admin)"
-echo "open in browser : https://${GW_IP}:${GW_PORT}  -> trust the self-signed cert -> register the first admin"
-echo "logs           : tail -f ~/.dsh/dsh-web.log"
+echo "dsh web   : http://127.0.0.1:${WEB_PORT}   (loopback only, no gateway yet)"
+echo
+echo "next steps:"
+echo "  1. enter the system  : open http://127.0.0.1:${WEB_PORT} in the phone's browser"
+echo "  2. open the sidebar  : 🧰 FDE 工具箱 panel → one-click install the members"
+echo "                        (incl. user-management — the HTTPS gateway on :${GW_PORT})"
+echo "  3. restart           : pkill -f 'node --expose-internals'; bash ~/start.sh   (start.sh skips a live dsh, so kill first)"
+echo "  4. gateway           : https://${LAN_IP}:${GW_PORT} → trust self-signed cert → register the first admin"
+echo "sshd            : port 8022   ssh -p 8022 $(whoami)@${LAN_IP}"
+echo "logs            : tail -f ~/.dsh/dsh-web.log"
 echo "restart after reboot : bash ~/start.sh   (starts sshd + dsh web + wake-lock)"
 echo "====================================================="
