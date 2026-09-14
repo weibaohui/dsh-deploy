@@ -104,17 +104,18 @@ fi
 log "installing @deepseek-ai/dsh@0.1.2-rc.1 (native modules will be compiled)..."
 export CFLAGS="--target=$NDK_TARGET"
 export CXXFLAGS="--target=$NDK_TARGET"
-# Pin 0.1.2-rc.1: the latest (0.1.5-rc.1) starts dsh web, prints the ready banner,
-# but never opens the :3080 listener on Termux/aarch64 (stuck post-banner, 0 errors,
-# ~10min wait). 0.1.2-rc.1 is the Termux-verified baseline (matches the locale patch
-# below). Bump only after re-verifying listen + gateway on a Termux device.
-#
 # --allow-scripts is REQUIRED on npm 11+ (bundled with node v26): without it npm
 # silently skips install scripts of @deepseek-ai/dsh-subprocess-local (spawn-helper
 # never gets built), koffi (no .node native module) and node-pty — dsh web then
 # hangs forever in pipe_read waiting for its worker and never binds :3080.
+#
+# 0.1.5-rc.1 verified working on Termux 2026-09-14 (web listens, / returns 401
+# auth gate) once install scripts are allowed. The earlier "0.1.5 never listens"
+# diagnosis was wrong — npm 11 skipping scripts broke every version equally.
+# NOTE: koffi loads its android prebuilt from @koromix/koffi-android-arm64;
+# node-pty has no android prebuild and compiles via its install script.
 DSH_ALLOW_SCRIPTS="@deepseek-ai/dsh-subprocess-local,koffi,node-pty,@google/genai,protobufjs"
-npm install -g @deepseek-ai/dsh@0.1.2-rc.1 --allow-scripts="$DSH_ALLOW_SCRIPTS"
+npm install -g @deepseek-ai/dsh@0.1.5-rc.1 --allow-scripts="$DSH_ALLOW_SCRIPTS"
 log "dsh installed"
 
 # ---- 6. [dsh-termux] build sharp against system libvips ----
@@ -244,12 +245,19 @@ log "dsh web started (pid $(cat ~/.dsh/dsh-web.pid))"
 # ---- 15. verify + print next steps ----
 # NOTE: no gateway at this point — user-management (the :19843 HTTPS front-door) is a
 # bundle member installed from the FDE 工具箱 panel AFTER first login, then a restart.
+# dsh 0.1.2+ answers "/" with 401 (cookie required) — do NOT use `curl -f` here, it
+# treats 401 as failure. A 401 (or 200/302) proves the webserver is listening.
 log "waiting for boot..."
 for _ in $(seq 1 15); do
-  curl -fs -o /dev/null "http://127.0.0.1:${WEB_PORT}/" 2>/dev/null && break
+  CODE="$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 "http://127.0.0.1:${WEB_PORT}/" 2>/dev/null)"
+  [ "$CODE" != "000" ] && break
   sleep 2
 done
-curl -fs -o /dev/null "http://127.0.0.1:${WEB_PORT}/" || err "dsh web :${WEB_PORT} not responding — check ~/.dsh/dsh-web.log"
+CODE="$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 "http://127.0.0.1:${WEB_PORT}/" 2>/dev/null)"
+case "$CODE" in
+  200|301|302|401) log "dsh web :${WEB_PORT} responding (HTTP $CODE)" ;;
+  *) err "dsh web :${WEB_PORT} not responding (HTTP $CODE) — check ~/.dsh/dsh-web.log" ;;
+esac
 # LAN IP for the sshd hint (no gateway hosts line in the log yet — enumerate ifaces)
 LAN_IP="$(ip -4 addr show 2>/dev/null | awk '/inet / && $2 !~ /^127\./ {sub(/\/.*$/,"",$2); print $2; exit}')"
 LAN_IP="${LAN_IP:-127.0.0.1}"
