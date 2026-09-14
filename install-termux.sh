@@ -192,6 +192,51 @@ PY
   log "locale patched (silent overwrite)"
 fi
 
+# ---- 8c. [flock-patch] Termux node reports platform=android; dsh's flock helper ----
+# (@deepseek-ai/node-addon-system/lib/flock.js) throws there and there is no
+# android addon package, which failed every session-persistence write (surfaced
+# as "[dsh-taskboard] turn error: flock is not supported on android-arm64").
+# dsh web is single-process on the device, so treat flock as always-acquired.
+FLOCK_JS="$DSH_LIB/node_modules/@deepseek-ai/node-addon-system/lib/flock.js"
+if [ -f "$FLOCK_JS" ] && grep -q "platform === 'android'" "$FLOCK_JS" 2>/dev/null; then
+  log "flock already patched (android no-op), skipping."
+elif [ -f "$FLOCK_JS" ] && grep -q "flock is not supported on" "$FLOCK_JS" 2>/dev/null; then
+  log "patching flock.js (android -> no-op lock)..."
+  python3 - "$FLOCK_JS" <<'PY'
+import sys
+p=sys.argv[1]
+s=open(p,encoding="utf-8").read()
+old="""    const { platform, arch } = process;
+    if (platform !== 'linux' && platform !== 'darwin') {
+        throw Object.assign(new Error(`flock is not supported on ${platform}-${arch}`), {
+            code: 'ERR_FLOCK_UNSUPPORTED_PLATFORM',
+            syscall: 'flock',
+        });
+    }"""
+new="""    const { platform, arch } = process;
+    if (platform === 'android') {
+        // [dsh-termux] Termux node reports platform=android and there is no
+        // @deepseek-ai/node-addon-system-android-* addon. flock is best-effort
+        // here: dsh web is a single process on the device, so treat locking as
+        // always-acquired instead of failing session persistence.
+        binding = { tryLock: (fd, cb) => cb(0) };
+        return binding;
+    }
+    if (platform !== 'linux' && platform !== 'darwin') {
+        throw Object.assign(new Error(`flock is not supported on ${platform}-${arch}`), {
+            code: 'ERR_FLOCK_UNSUPPORTED_PLATFORM',
+            syscall: 'flock',
+        });
+    }"""
+assert old in s, "flock.js anchor not found; node-addon-system may have changed"
+open(p,"w",encoding="utf-8").write(s.replace(old,new,1))
+print("    patched: flock android no-op")
+PY
+  log "flock patched (android no-op)"
+else
+  log "warning: flock.js not found, skipping."
+fi
+
 # ---- 9. verify dsh ----
 command -v dsh >/dev/null || err "dsh not on PATH after install — check errors above."
 log "dsh $(dsh --version) ready"
