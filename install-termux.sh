@@ -46,9 +46,9 @@ API="$(getprop ro.build.version.sdk 2>/dev/null || echo 0)"
 [ -f "$HERE/credentials.yaml" ] || err "credentials.yaml not found — copy the template first:  cp credentials.yaml.example credentials.yaml  then fill your provider API key"
 grep -q '<your-api-key>' "$HERE/credentials.yaml" 2>/dev/null && err "credentials.yaml still has the placeholder — fill your real LLM provider API key."
 
-# ---- 1. npm registry -> npmmirror (domestic) ----
-npm config set registry https://registry.npmmirror.com
-log "npm registry -> npmmirror"
+# ---- 1. npm registry -> Tencent mirror (domestic) ----
+npm config set registry https://mirrors.cloud.tencent.com/npm/
+log "npm registry -> Tencent mirror"
 
 # ---- 2. Termux pkg mirror -> Tsinghua (default packages-cf.termux.dev is often unreachable from CN) ----
 SRC="$PREFIX/etc/apt/sources.list"
